@@ -1,6 +1,10 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"sync"
+	"time"
+)
 
 var conferenceName = "Go conference"
 
@@ -17,6 +21,8 @@ type UserData struct {
 	numberOfTickets uint
 }
 
+var wg = sync.WaitGroup{}
+
 func main() {
 	greatUsers(remainingTickets)
 
@@ -24,38 +30,39 @@ func main() {
 	fmt.Println("We have total of", conferenceTickets, "tickets and", remainingTickets, "are available")
 	fmt.Println("Get your ticket here to attend.")
 
-	for {
-		// get userInput
-		firstName, lastName, email, userTickets := getUserInput()
+	// get userInput
+	firstName, lastName, email, userTickets := getUserInput()
 
-		// user input validation
-		isValidName, isValidEmail, isValidTicketNumber := ValidationUserInput(firstName, lastName, email, userTickets, remainingTickets)
+	// user input validation
+	isValidName, isValidEmail, isValidTicketNumber := ValidationUserInput(firstName, lastName, email, userTickets, remainingTickets)
 
-		if isValidName && isValidEmail && isValidTicketNumber {
-			// here we call function to book ticket
-			bookTicket(firstName, lastName, email, userTickets)
-			// here we call function print first name
-			firstNames := firstNames()
-			fmt.Printf("The first name of booking are: %v\n", firstNames)
+	if isValidName && isValidEmail && isValidTicketNumber {
+		// here we call function to book ticket
+		bookTicket(firstName, lastName, email, userTickets)
 
-			if remainingTickets == 0 {
-				fmt.Printf("The conference is booked out, come next year")
-				break
+		wg.Add(1) // add one thread to be excecuted (here sendTicket)
+		// here we call function to send ticket (using goroutines (go))
+		go sendTicket(userTickets, firstName, lastName, email)
+		// here we call function print first name
+		firstNames := firstNames()
+		fmt.Printf("The first name of booking are: %v\n", firstNames)
 
-			}
-		} else {
-			if !isValidName {
-				fmt.Println("first name or last name you entered is too short")
-			}
-			if !isValidEmail {
-				fmt.Println("Email address you entered doesn't contain @ sign ")
-			}
-			if !isValidTicketNumber {
-				fmt.Println("number of tickets you entered is invalid")
-			}
+		if remainingTickets == 0 {
+			fmt.Printf("The conference is booked out, come next year")
+
 		}
-
+	} else {
+		if !isValidName {
+			fmt.Println("first name or last name you entered is too short")
+		}
+		if !isValidEmail {
+			fmt.Println("Email address you entered doesn't contain @ sign ")
+		}
+		if !isValidTicketNumber {
+			fmt.Println("number of tickets you entered is invalid")
+		}
 	}
+	wg.Wait() //wait for sendTicket be executed
 
 }
 
@@ -109,5 +116,16 @@ func bookTicket(firstName string, lastName string, email string, userTickets uin
 
 	fmt.Printf("Thank you for booking %v you will receive email confirmation on %v\n", userTickets, email)
 	fmt.Printf("%v tickets remaining for %v\n", remainingTickets, conferenceName)
+
+}
+
+// this will take a time so we need to use WaitingGRoup implementation for it
+func sendTicket(userTickets uint, firstName string, lastName string, email string) {
+	time.Sleep(50 * time.Second)
+	var ticket = fmt.Sprintf("%v tickets for %v %v", userTickets, firstName, lastName)
+	fmt.Println("#####################################")
+	fmt.Printf("Sending ticket %v to email address %v\n", ticket, email)
+	fmt.Println("#####################################")
+	wg.Done() // this will remove the sendTicket thread from the
 
 }
